@@ -1,0 +1,20 @@
+# Node
+node_modules/
+tests/web/package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Playwright
+tests/web/playwright-report/
+
+# Results
+test-results/
+perf/results/
+
+# OS
+.DS_Store
+
+# Perf artifacts
+tests/perf/results/
