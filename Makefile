@@ -220,10 +220,14 @@ test-smoke: create-dirs ## Run reachability checks (web + APIs) and print a pass
 # ---------------------------------------------------------------------
 test-web: ## Run Playwright E2E (includes a11y)
 	@printf "$(BLUE)🌐 Web E2E (Playwright)$(NC)\n"
-	@cd tests/web && npm test 2>&1 | tee $(abspath $(WEB_LOG)) >/dev/null || { printf "$(RED)❌ Web failed$(NC)\n"; exit 1; }
+	@cd tests/web && \
+		if [ ! -x node_modules/.bin/playwright ]; then \
+			printf "$(YELLOW)⚠️  Playwright not found. Installing deps...$(NC)\n"; \
+			npm install && npx playwright install --with-deps || npx playwright install; \
+		fi
+	@cd tests/web && npm test 2>&1 | tee $(abspath $(WEB_LOG)) || { printf "$(RED)❌ Web failed$(NC)\n"; exit 1; }
 	@perl -i -pe 's/\e\[[0-9;]*[A-Za-z]//g' $(WEB_LOG) || true
 	@printf "$(GREEN)✅ Web passed$(NC)\n"
-
 
 # ---------------------------------------------------------------------
 # 🔌 API Tests (pytest)
