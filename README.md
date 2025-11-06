@@ -82,10 +82,15 @@ testforge/
     │   └── smoke_integration.py                  # Reachability and smoke checks for services
     ├── perf/                                     # Performance testing suite (k6)
     │   ├── baseline_perf.js                      # k6 micro-benchmark script
+    │   ├── run_k6.sh                             # Cross-platform runner (macOS uses `script`, CI runs k6 directly)
     │   ├── perf_gate.py                          # Performance gate checker enforcing SLOs
     │   ├── PERF_PLAN.md                          # Performance testing plan and rationale
     │   └── results/                              # Performance test results (generated)
-    │       └── k6-summary.json                   # k6 test summary with metrics
+    │       ├── k6-export.json                    # k6 summary exported via --summary-export
+    │       ├── k6-stdout.txt                     # k6 console output (used by summary parser)
+    │       ├── k6-output.txt                     # k6 --console-output sink (local runs)
+    │       ├── k6-warn.log                       # stderr warnings/threshold failures
+    │       └── .perf_status                      # PASS/FAIL marker written by runner
     └── web/                                      # Web UI test suite (Playwright)
         ├── a11y.spec.ts                          # Accessibility tests using axe-core
         ├── cart.spec.ts                          # Cart and sorting behavior tests

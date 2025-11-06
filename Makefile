@@ -220,10 +220,14 @@ test-smoke: create-dirs ## Run reachability checks (web + APIs) and print a pass
 # ---------------------------------------------------------------------
 test-web: ## Run Playwright E2E (includes a11y)
 	@printf "$(BLUE)🌐 Web E2E (Playwright)$(NC)\n"
-	@cd tests/web && npm test 2>&1 | tee $(abspath $(WEB_LOG)) >/dev/null || { printf "$(RED)❌ Web failed$(NC)\n"; exit 1; }
+	@cd tests/web && \
+		if [ ! -x node_modules/.bin/playwright ]; then \
+			printf "$(YELLOW)⚠️  Playwright not found. Installing deps...$(NC)\n"; \
+			npm install && npx playwright install --with-deps || npx playwright install; \
+		fi
+	@cd tests/web && npm test 2>&1 | tee $(abspath $(WEB_LOG)) || { printf "$(RED)❌ Web failed$(NC)\n"; exit 1; }
 	@perl -i -pe 's/\e\[[0-9;]*[A-Za-z]//g' $(WEB_LOG) || true
 	@printf "$(GREEN)✅ Web passed$(NC)\n"
-
 
 # ---------------------------------------------------------------------
 # 🔌 API Tests (pytest)
@@ -273,34 +277,17 @@ test-api: ## Run pytest-based API tests with readable per-test summary
 test-perf: ## Baseline performance check with real k6 status bar; writes logs & mirrors k6 exit
 	@printf "$(BLUE)⚡ Baseline Perf (k6) — $${K6_VUS:-1} VU • $${K6_DURATION:-60s} run$(NC)\n"
 	@mkdir -p $(PERF_DIR)
-	@{ \
-		K6_LOG_LEVEL=$${K6_LOG_LEVEL:-error} \
-		K6_PROGRESS=$${K6_PROGRESS:-0} \
-		K6_VUS=$${K6_VUS:-1} \
-		K6_DURATION=$${K6_DURATION:-60s} \
-		K6_TARGET=$${K6_TARGET:-https://jsonplaceholder.typicode.com/posts/1} \
-		script -q /dev/null k6 run \
-			--console-output=$(PERF_OUT) \
-			--summary-export=$(PERF_JSON) \
-			tests/perf/baseline_perf.js \
-			2> $(PERF_WARN) | tee $(PERF_STD); \
-		rc=$${PIPESTATUS[0]}; \
-		if [ "$$rc" -eq 0 ]; then \
-			printf "$(GREEN)✅ Perf passed$(NC)\n"; \
-			printf "PASS\n" > $(PERF_MARK); \
-		else \
-			printf "$(RED)❌ Perf failed (thresholds)$(NC)\n"; \
-			printf "$(YELLOW)ℹ Saved warnings: $(PERF_WARN)$(NC)\n"; \
-			printf "FAIL\n" > $(PERF_MARK); \
-			if [ -s $(PERF_WARN) ]; then \
-				printf "\n$(YELLOW)--- warn.log (tail) ---$(NC)\n"; tail -n 20 $(PERF_WARN); \
-			fi; \
-			if [ -s $(PERF_OUT) ]; then \
-				printf "\n$(YELLOW)--- k6-output (tail) ---$(NC)\n"; tail -n 20 $(PERF_OUT); \
-			fi; \
-		fi; \
-		exit $$rc; \
-	}
+	@tests/perf/run_k6.sh $(PERF_DIR) || true
+	@if [ -f "$(PERF_MARK)" ] && grep -q "PASS" "$(PERF_MARK)"; then \
+		printf "$(GREEN)✅ Perf passed$(NC)\n"; \
+	else \
+		printf "$(RED)❌ Perf failed (thresholds)$(NC)\n"; \
+		printf "$(YELLOW)ℹ Saved warnings: $(PERF_WARN)$(NC)\n"; \
+		[ -s $(PERF_WARN) ] && printf "\n$(YELLOW)--- warn.log (tail) ---$(NC)\n" && tail -n 20 $(PERF_WARN); \
+		[ -s $(PERF_OUT) ] && printf "\n$(YELLOW)--- k6-output (tail) ---$(NC)\n" && tail -n 20 $(PERF_OUT); \
+		exit 1; \
+	fi
+
 
 
 
